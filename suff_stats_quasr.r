@@ -49,143 +49,151 @@ Kvec.node<-function(dat,m){
 	t(simplify2array(out))
 }
 
-Kvec.edge<-function(dat,m){
+Kvec.edge<-function(dat,m,edgelist=NULL){
 	d=dim(dat)[2]
 	g=graph.full(d)
-	edgelist=get.edgelist(g)
+	if(is.null(edgelist)) edgelist=get.edgelist(g)
 	e=dim(edgelist)[1]
-	ret=lapply(1:e,function(i){
+	if(d>=100){
+		cores=detectCores()
+	}else{
+		cores=1
+	}
+	ret=mclapply(1:e,function(i){
 		s=edgelist[i,1]
 		t=edgelist[i,2]
 		#out= crossprod(2*len_deriv(m,dat[,s])[-1,]*(2*dat[,s]-1) ,legendre_Pl_array(m,2*dat[,t]-1)[-1,] )
 		#out = out + crossprod(legendre_Pl_array(m,2*dat[,s]-1)[-1,], 2*len_deriv(m,dat[,t])[-1,]*(2*dat[,t]-1) )
 		#out= out+ crossprod(2*len_deriv2(m,dat[,s])[-1,]*(2*dat[,s]-1) ,legendre_Pl_array(m,2*dat[,t]-1)[-1,] )
 		#out = out + crossprod(legendre_Pl_array(m,2*dat[,s]-1)[-1,], 2*len_deriv2(m,dat[,t])[-1,]*(2*dat[,t]-1) )
-		out= crossprod(-2*t(len_deriv(m,dat[,s])[-1,])*(2*dat[,s]-1) , t(legendre_Pl_array(m,2*dat[,t]-1)[-1,]) )
-		out = out + legendre_Pl_array(m,2*dat[,s]-1)[-1,] %*% (-2*t(len_deriv(m,dat[,t])[-1,])*(2*dat[,t]-1) )
-		out= out+ crossprod(dat[,s]*(1-dat[,s])*t(len_deriv2(m,dat[,s])[-1,]) ,t(legendre_Pl_array(m,2*dat[,t]-1)[-1,]) )
-		out = out + legendre_Pl_array(m,2*dat[,s]-1)[-1,] %*% (dat[,t]*(1-dat[,t])*t(len_deriv2(m,dat[,t])[-1,]) )
-		return(out/dim(dat)[1])
-	})
-	return(array(unlist(ret),dim=c(m,m,e)))
+		out1= crossprod(-2*t(len_deriv(m,dat[,s])[-1,])*(2*dat[,s]-1) , t(legendre_Pl_array(m,2*dat[,t]-1)[-1,]) )
+		out2 = legendre_Pl_array(m,2*dat[,s]-1)[-1,] %*% (-2*t(len_deriv(m,dat[,t])[-1,])*(2*dat[,t]-1) )
+		out1= out1+ crossprod(dat[,s]*(1-dat[,s])*t(len_deriv2(m,dat[,s])[-1,]) ,t(legendre_Pl_array(m,2*dat[,t]-1)[-1,]) )
+		out2 = out2 + legendre_Pl_array(m,2*dat[,s]-1)[-1,] %*% (dat[,t]*(1-dat[,t])*t(len_deriv2(m,dat[,t])[-1,]) )
+		return(list(out1=out1/dim(dat)[1],out2=out2/dim(dat)[1]))
+	},mc.cores=cores)
+	return(list(array(unlist(lapply(ret,function(x)x$out1)),dim=c(m,m,e)),
+		array(unlist(lapply(ret,function(x)x$out2)),dim=c(m,m,e))))
 }
 
-Gamma.ret<-function(dat,m1,m2){
+# Gamma.ret<-function(dat,m1,m2){
+# 	d=dim(dat)[2]
+# 	g=graph.full(d)
+# 	ge=get.edgelist(g)	
+# 	nedge=dim(ge)[1]
+# 	out=mclapply(1:d,function(i){
+# 		eout=mclapply(1:nedge,function(e){
+# 			s=ge[e,1];t=ge[e,2]
+# 			if(s==i){
+# 				l1= len_deriv(m1,dat[,i])[-1,]
+# 			}else{
+# 				l1=numeric()
+# 				lpa=legendre_Pl_array(m2,2*dat[,s]-1)[-1,]
+# 				for(l in 1:m2){
+# 					if(i<s){
+# 						l1=rbind(
+# 							l1,
+# 							t(t(len_deriv(m2,dat[,i])[-1,]) * lpa[l,])
+# 							#t(apply(len_deriv(m2,dat[,i])[-1,],1,function(x) x*lpa[l,,drop=F]))
+# 						)
+# 					}else{
+# 						l1=rbind(
+# 								l1,
+# 								t(t(lpa) * len_deriv(m2,dat[,i])[-1,][l,])
+# 								#t(apply(lpa,1,function(x) x*len_deriv(m2,dat[,i])[-1,][l,,drop=F]))
+# 							)
+# 					}
+# 				}
+# 			}
+# 			if(t==i){
+# 				l2= len_deriv(m1,dat[,i])[-1,]
+# 			}else{
+# 				l2=numeric()
+# 				lpa=legendre_Pl_array(m2,2*dat[,t]-1)[-1,]
+# 				for(l in 1:m2){
+# 				if(i<t){
+# 					l2=rbind(
+# 						l2,
+# 						t(t(len_deriv(m2,dat[,i])[-1,]) * lpa[l,])
+# 
+# 						#t(apply(len_deriv(m2,dat[,i])[-1,],1,function(x) x*lpa[l,,drop=F]))
+# 						)
+# 				}else{
+# 					l2=rbind(
+# 						l2,
+# 						t(t(lpa) * len_deriv(m2,dat[,i])[-1,][l,])
+# 						#t(apply(lpa,1,function(x) x*len_deriv(m2,dat[,i])[-1,][l,,drop=F]))
+# 						)
+# 				}
+# 				}
+# 			}
+# 			tcrossprod(l1,l2)/dim(dat)[1]
+# 		},mc.cores=detectCores())
+# 		return(eout)
+# 	},mc.cores=detectCores())
+# 	return(out)
+# 
+# }
+
+# Gamma.node<-function(dat,m1,m2){
+# 	d=dim(dat)[2]
+# 	out=mclapply(1:d,function(i){
+# 		eout=mclapply(1:d,function(e){
+# 			if(i==e){
+# 				l1= len_deriv(m1,dat[,e])[-1,]
+# 			}else{
+# 				l1=numeric()
+# 				lpa=legendre_Pl_array(m2,2*dat[,e]-1)[-1,]
+# 				for(l in 1:m2){
+# 				if(i<e){
+# 					l1=rbind(
+# 						l1,
+# 						t(apply(len_deriv(m2,dat[,i])[-1,],1,function(x) x*lpa[l,,drop=F]))
+# 					)
+# 				}else{
+# 					l1=rbind(
+# 						l1,
+# 						t(apply(lpa,1,function(x) x*len_deriv(m2,dat[,i])[-1,]))
+# 					)
+# 				}
+# 				}
+# 			}
+# 			tcrossprod(l1,l1)/dim(dat)[1]
+# 		},mc.cores=1)
+# 		return(eout)
+# 	},mc.cores=detectCores())
+# 	return(out)
+# }
+
+
+
+Gamma.ret2<-function(dat,m1,m2,cores=1,ge=NULL){
 	d=dim(dat)[2]
-	g=graph.full(d)
-	ge=get.edgelist(g)	
-	nedge=dim(ge)[1]
-	out=mclapply(1:d,function(i){
-		eout=mclapply(1:nedge,function(e){
-			s=ge[e,1];t=ge[e,2]
-			if(s==i){
-				l1= len_deriv(m1,dat[,i])[-1,]
-			}else{
-				l1=numeric()
-				lpa=legendre_Pl_array(m2,2*dat[,s]-1)[-1,]
-				for(l in 1:m2){
-					if(i<s){
-						l1=rbind(
-							l1,
-							t(t(len_deriv(m2,dat[,i])[-1,]) * lpa[l,])
-							#t(apply(len_deriv(m2,dat[,i])[-1,],1,function(x) x*lpa[l,,drop=F]))
-						)
-					}else{
-						l1=rbind(
-								l1,
-								t(t(lpa) * len_deriv(m2,dat[,i])[-1,][l,])
-								#t(apply(lpa,1,function(x) x*len_deriv(m2,dat[,i])[-1,][l,,drop=F]))
-							)
-					}
-				}
-			}
-			if(t==i){
-				l2= len_deriv(m1,dat[,i])[-1,]
-			}else{
-				l2=numeric()
-				lpa=legendre_Pl_array(m2,2*dat[,t]-1)[-1,]
-				for(l in 1:m2){
-				if(i<t){
-					l2=rbind(
-						l2,
-						t(t(len_deriv(m2,dat[,i])[-1,]) * lpa[l,])
-
-						#t(apply(len_deriv(m2,dat[,i])[-1,],1,function(x) x*lpa[l,,drop=F]))
-						)
-				}else{
-					l2=rbind(
-						l2,
-						t(t(lpa) * len_deriv(m2,dat[,i])[-1,][l,])
-						#t(apply(lpa,1,function(x) x*len_deriv(m2,dat[,i])[-1,][l,,drop=F]))
-						)
-				}
-				}
-			}
-			tcrossprod(l1,l2)/dim(dat)[1]
-		},mc.cores=detectCores())
-		return(eout)
-	},mc.cores=detectCores())
-	return(out)
-
-}
-
-Gamma.node<-function(dat,m1,m2){
-	d=dim(dat)[2]
-	out=mclapply(1:d,function(i){
-		eout=mclapply(1:d,function(e){
-			if(i==e){
-				l1= len_deriv(m1,dat[,e])[-1,]
-			}else{
-				l1=numeric()
-				lpa=legendre_Pl_array(m2,2*dat[,e]-1)[-1,]
-				for(l in 1:m2){
-				if(i<e){
-					l1=rbind(
-						l1,
-						t(apply(len_deriv(m2,dat[,i])[-1,],1,function(x) x*lpa[l,,drop=F]))
-					)
-				}else{
-					l1=rbind(
-						l1,
-						t(apply(lpa,1,function(x) x*len_deriv(m2,dat[,i])[-1,]))
-					)
-				}
-				}
-			}
-			tcrossprod(l1,l1)/dim(dat)[1]
-		},mc.cores=1)
-		return(eout)
-	},mc.cores=detectCores())
-	return(out)
-}
-
-
-
-Gamma.ret2<-function(dat,m1,m2,cores=1){
-	d=dim(dat)[2]
-	g=graph.full(d)
-	ge=get.edgelist(g)	
+	if(is.null(ge))ge=get.edgelist(graph.full(d))	
+	g=graph.edgelist(ge,directed=F)
 	nedge=dim(ge)[1]
 	out=mclapply(1:d,function(i){
 		XX=numeric()
-		for(j in 1:d){
-			if(i==j){
-				ld=len_deriv(m1,dat[,i])[-1,]
-				XX=cbind(XX, t(ld) )
-			}else{
-				ld=len_deriv(m2,dat[,i])[-1,]
-				lpa=legendre_Pl_array(m2,2*dat[,j]-1)[-1,]
-				if(i<j){
+		for(j in sort(c(i,neighbors(g,i)))){	
+				if(i==j){
+					ld=len_deriv(m1,dat[,i])[-1,]
+					XX=cbind(XX, t(ld) )
+				}else if(i<j){
+					e=which(ge[,1]%in%c(i,j) & ge[,2]%in%c(i,j))
+					ld=len_deriv(m2,dat[,i])[-1,]
+					lpa=legendre_Pl_array(m2,2*dat[,j]-1)[-1,]
 					for(l in 1:m2){
 						XX=cbind(XX, t(ld) * lpa[l,])
 					}
 				}else{
+					e=which(ge[,1]%in%c(i,j) & ge[,2]%in%c(i,j))
+					ld=len_deriv(m2,dat[,i])[-1,]
+					lpa=legendre_Pl_array(m2,2*dat[,j]-1)[-1,]
 					for(l in 1:m2){
 						XX=cbind(XX, t(lpa) * ld[l,])
 					}
 				}
-			}
-		}
+		}		
 		#return(crossprod(XX,XX)/dim(dat)[1])
 		#return(XX)
 		return(svd(XX,nu=0))
@@ -194,22 +202,28 @@ Gamma.ret2<-function(dat,m1,m2,cores=1){
 
 }
 
-Kvec2<-function(dat,m1,m2){
+Kvec2<-function(dat,m1,m2,elist=NULL){
+	if(is.null(elist)) elist=get.edgelist(graph.full(dim(dat)[2]))
+	g=graph.edgelist(elist,directed=F)
 	kvn=Kvec.node(dat,m1)
-	kve=Kvec.edge(dat,m2)
-	elist=get.edgelist(graph.full(dim(dat)[2]))
-	YY=numeric()
+	kve=Kvec.edge(dat,m2,elist)
+	#YY=numeric()
+	YY=list()
 	for(i in 1:d){
 		XX=numeric()
-		for(j in 1:d){
+		for(j in sort(c(i,neighbors(g,i)))){
 			if(i==j){
 				XX=c(XX,kvn[i,])
+			}else if(i<j){
+				e=which(elist[,1]%in% c(i,j) & elist[,2]%in%c(i,j))
+				XX= c(XX, kve[[1]][,,e])
 			}else{
 				e=which(elist[,1]%in% c(i,j) & elist[,2]%in%c(i,j))
-				XX= c(XX, kve[,,e])
+				XX= c(XX, kve[[2]][,,e])
 			}
 		}
-		YY=cbind(YY,XX)
+		##YY=cbind(YY,XX)
+		YY[[i]]=XX
 	}
 	return(YY)
 }
