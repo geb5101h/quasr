@@ -1,4 +1,4 @@
-set.seed(12341)
+set.seed(123441)
 source("~/quasr/suff_stats_quasr.r")
 source("~/quasr/admm.r")
 
@@ -185,15 +185,17 @@ dev.off()
 # dev.off()
 pdf("bivdenrisk.pdf",width=10,height=7)
 par(mfcol=c(1,2))
-contour(out[[1]]$trw$trw$edge_den[,,1])
+contour(out[[1]]$trw$trw$edge_den[,,10])
 den1=rwrapper2(out[[1]]$quasr$ze, out[[1]]$quasr$zn,
  		edge_mean,node_mean,edgelist,
      	wt, legen.Vec, legen.array, lam, alpha_start, alg = 0L)
-contour(den1$edge_den[,,1])
+contour(den1$edge_den[,,10])
 
-contour(out[[10]]$trw$trw$edge_den[,,1])
+contour(out[[10]]$trw$trw$edge_den[,,10])
 den1=rwrapper2(out[[10]]$quasr$ze, out[[10]]$quasr$zn,
  		edge_mean,node_mean,edgelist,
      	wt, legen.Vec, legen.array, lam, alpha_start, alg = 0L)
-contour(den1$edge_den[,,1])
-dev.off()
+contour(den1$edge_den[,,10])
+
+
+con

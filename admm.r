@@ -20,8 +20,8 @@ admmSel<-function(dat,lam,m1,m2,rho=1,cores=1,elist=NULL){
 	Ginv=mclapply(1:d,function(x) G[[x]]$v %*% ((1/((1/n)*G[[x]]$d^2+rho)) * t(G[[x]]$v)),mc.cores=d)
 	#Ginv=mclapply(1:d,function(x) solve(G[[x]]+rho*diag(dd)),mc.cores=cores)
 	print("Done.")
-	znode = matrix(0,d,m1)
-	zedge = array(0,dim=c(m2,m2,dim(elist)[1]))
+	znode = matrix(rnorm(d*m1)*1e-10,d,m1)
+	zedge = array(rnorm(m2*m2*dim(elist)[1])*1e-10,dim=c(m2,m2,dim(elist)[1]))
 	tol=Inf
 	x=xold=y=zz=lapply(1:d,function(x)rep(0,dim(G[[x]]$v)[1]))
 	admmout=list()
@@ -40,6 +40,8 @@ admmSel<-function(dat,lam,m1,m2,rho=1,cores=1,elist=NULL){
 		iter=iter+1
 		# x step
 		xold=x
+		zedge_old=zedge
+		znode_old=znode
 		#print(lapply(y,function(x)length(x)))
 		x=mclapply(1:d,function(i){
 		#	print(dim(Ginv[[i]]))
@@ -53,7 +55,7 @@ admmSel<-function(dat,lam,m1,m2,rho=1,cores=1,elist=NULL){
 			c= (ii)*m2^2+1
 			ind=c: (c+m1-1)
 			znode[i,] = (x[[i]][ind] + y[[i]][ind]/rho )
-			znode[i,] = thresh(znode[i,],.001*lam[lamind]/rho)
+			znode[i,] = thresh(znode[i,],.01*lam[lamind]/rho)
 			y[[i]][ind] = y[[i]][ind] + rho*( x[[i]][ind] - znode[i,])
 			zz[[i]][ind] = znode[i,]
 			for(j in neighbors(g,i)){
@@ -93,7 +95,8 @@ admmSel<-function(dat,lam,m1,m2,rho=1,cores=1,elist=NULL){
 			}
 		
 		#print(mean(abs(unlist(x)-unlist(zz))))
-		tol = mean(abs(unlist(xold)-unlist(x)))/mean(abs(unlist(xold))) #+ .5*mean(abs(unlist(x)-unlist(zz)))
+		#tol = mean(abs(unlist(xold)-unlist(x)))/mean(abs(unlist(xold))) #+ .5*mean(abs(unlist(x)-unlist(zz)))
+		tol = ( sum(abs(zedge-zedge_old)) + sum(abs(znode-znode_old)) )/(sum(abs(znode_old))+sum(abs(zedge_old)))
 			print(paste("tol:",tol))
 		}
 		#return(list(znode=znode,zedge=zedge))#list(z=zz,x=x,y=y,znode=znode,zedge=zedge))
