@@ -14,7 +14,7 @@ len_deriv<-function(m,y){
 	#returns x(1-x)deriv
 	out=matrix(0,m+1,length(y))
 	out[1,]=0
-	lpa<-legendre_Pl_array(m,2*y-1)
+	lpa<-legendre_Pl_array(m,2*y-1)[,,drop=F]
 	for(i in 2:(m+1)){
 		k=i-1
 		out[i,]<- -(k/2)*( (2*y-1)*lpa[i,]-sqrt((2*k+1)/(2*k-1))*lpa[i-1,] )
@@ -28,8 +28,9 @@ len_deriv2<-function(m,y){
 	out=matrix(0,m+1,length(y))
 	out[1,]=0
 	out[2,]=0
+	if(m==1) return(out)
 	#lpa<-legendre_Pl_array(m,2*y-1)
-	ld = len_deriv(m,y)
+	ld = len_deriv(m,y)[,,drop=F]
 	for(i in 3:(m+1)){
 		k=i-1
 		#out[i,]<- sqrt(2*(i-1)+1)*(out[i-2,]/sqrt(2*(i-3)+1)+(1/2)*(2*(i-2)+1)*ld[i-1,]/sqrt(2*(i-2)+1) )
@@ -42,8 +43,8 @@ Kvec.node<-function(dat,m){
 	d=dim(dat)[2]
 	out=matrix(0,d,m)
 	out=lapply(1:d,function(i){
-		ld1= t(-2*len_deriv(m,dat[,i])[-1,])*(2*dat[,i]-1)
-		ld2= dat[,i]*(1-dat[,i])*t(len_deriv2(m,dat[,i])[-1,])
+		ld1= t(-2*len_deriv(m,dat[,i])[-1,,drop=F])*(2*dat[,i]-1)
+		ld2= dat[,i]*(1-dat[,i])*t(len_deriv2(m,dat[,i])[-1,,drop=F])
 		rowMeans(t(ld1+ld2))
 	})
 	t(simplify2array(out))
@@ -66,10 +67,10 @@ Kvec.edge<-function(dat,m,edgelist=NULL){
 		#out = out + crossprod(legendre_Pl_array(m,2*dat[,s]-1)[-1,], 2*len_deriv(m,dat[,t])[-1,]*(2*dat[,t]-1) )
 		#out= out+ crossprod(2*len_deriv2(m,dat[,s])[-1,]*(2*dat[,s]-1) ,legendre_Pl_array(m,2*dat[,t]-1)[-1,] )
 		#out = out + crossprod(legendre_Pl_array(m,2*dat[,s]-1)[-1,], 2*len_deriv2(m,dat[,t])[-1,]*(2*dat[,t]-1) )
-		out1= crossprod(-2*t(len_deriv(m,dat[,s])[-1,])*(2*dat[,s]-1) , t(legendre_Pl_array(m,2*dat[,t]-1)[-1,]) )
-		out2 = legendre_Pl_array(m,2*dat[,s]-1)[-1,] %*% (-2*t(len_deriv(m,dat[,t])[-1,])*(2*dat[,t]-1) )
-		out1= out1+ crossprod(dat[,s]*(1-dat[,s])*t(len_deriv2(m,dat[,s])[-1,]) ,t(legendre_Pl_array(m,2*dat[,t]-1)[-1,]) )
-		out2 = out2 + legendre_Pl_array(m,2*dat[,s]-1)[-1,] %*% (dat[,t]*(1-dat[,t])*t(len_deriv2(m,dat[,t])[-1,]) )
+		out1= crossprod(-2*t(len_deriv(m,dat[,s])[-1,,drop=F])*(2*dat[,s]-1) , t(legendre_Pl_array(m,2*dat[,t]-1)[-1,,drop=F]) )
+		out2 = legendre_Pl_array(m,2*dat[,s]-1)[-1,,drop=F] %*% (-2*t(len_deriv(m,dat[,t])[-1,,drop=F])*(2*dat[,t]-1) )
+		out1= out1+ crossprod(dat[,s]*(1-dat[,s])*t(len_deriv2(m,dat[,s])[-1,,drop=F]) ,t(legendre_Pl_array(m,2*dat[,t]-1)[-1,,drop=F]) )
+		out2 = out2 + legendre_Pl_array(m,2*dat[,s]-1)[-1,,drop=F] %*% (dat[,t]*(1-dat[,t])*t(len_deriv2(m,dat[,t])[-1,,drop=F]) )
 		return(list(out1=out1/dim(dat)[1],out2=out2/dim(dat)[1]))
 	},mc.cores=cores)
 	return(list(array(unlist(lapply(ret,function(x)x$out1)),dim=c(m,m,e)),
@@ -176,19 +177,19 @@ Gamma.ret2<-function(dat,m1,m2,cores=1,ge=NULL){
 		XX=numeric()
 		for(j in sort(c(i,neighbors(g,i)))){	
 				if(i==j){
-					ld=len_deriv(m1,dat[,i])[-1,]
+					ld=len_deriv(m1,dat[,i])[-1,,drop=F]
 					XX=cbind(XX, t(ld) )
 				}else if(i<j){
 					e=which(ge[,1]%in%c(i,j) & ge[,2]%in%c(i,j))
-					ld=len_deriv(m2,dat[,i])[-1,]
-					lpa=legendre_Pl_array(m2,2*dat[,j]-1)[-1,]
+					ld=len_deriv(m2,dat[,i])[-1,,drop=F]
+					lpa=legendre_Pl_array(m2,2*dat[,j]-1)[-1,,drop=F]
 					for(l in 1:m2){
 						XX=cbind(XX, t(ld) * lpa[l,])
 					}
 				}else{
 					e=which(ge[,1]%in%c(i,j) & ge[,2]%in%c(i,j))
-					ld=len_deriv(m2,dat[,i])[-1,]
-					lpa=legendre_Pl_array(m2,2*dat[,j]-1)[-1,]
+					ld=len_deriv(m2,dat[,i])[-1,,drop=F]
+					lpa=legendre_Pl_array(m2,2*dat[,j]-1)[-1,,drop=F]
 					for(l in 1:m2){
 						XX=cbind(XX, t(lpa) * ld[l,])
 					}

@@ -4,14 +4,12 @@ source("~/quasr/admm.r")
 
 
 library(parallel)
-
-
-
 library(huge)
 
-nlist= floor(exp(seq(from=log(40),to=log(5000),length.out=25)))
-d=20
-m1=4
+nlist= floor(exp(seq(from=log(40),to=log(5000),length.out=5)))
+#nlist=100000
+d=5
+m1=2
 m2=4
 source("~/trw/startup.r")
 setwd("~/quasr")
@@ -25,13 +23,13 @@ h$data<-scale(h$data,center=T,scale=T)/8+0.5
 h$data<- sign(h$data-.5)*(abs(h$data-.5))^.6
 h$data<-scale(h$data,center=T,scale=T)/4+0.5
 
-h$data[h$data>=1] = .99
-h$data[h$data<=0] = .001
+h$data[h$data>=1] = .95
+h$data[h$data<=0] = .05
 
 rpt=rpq=matrix(0,rep,length(nlist))
 out=list()
 
-for(r in 1:rep){
+simout=lapply(1:rep,function(r){
 print(paste("rep number ",r))
 ncount=1
 kk=0
@@ -44,7 +42,7 @@ ncount=ncount+n
 #dat=matrix(runif(d*n),n,d)
 
 lammax=max(abs(unlist(Kvec2(dat,m1,m2))))
-lamseq=exp(seq(from=log(.01),to=log(lammax),length.out=5))
+lamseq=exp(seq(from=log(.01),to=log(lammax),length.out=25))
 
 #admm=admmSel(dat,lam=lamseq,m1=m1,m2=m2,rho=1,n=n)
 # Rprof(line.profiling=T)
@@ -151,51 +149,40 @@ out[[kk]]=list(quasr=admm[[which.min(unlist(risk_path_quasr))]],
 	)
 
 }
-}
+return(list(rpt=rpt[r,kk],rpq=rpq[r,kk]))
+})
 
+rpt=lapply(simout,function(x)x$rpt)
+rpq=lapply(simout,function(x)x$rpq)
 
 save.image("scorematchpath.rdata")
 
-# 
-# 
-# 
-# ptf=parallelTrwFit(edge_coef,node_coef,edge_mean,node_mean,
-#                    edgelist,wt,lambda=lamseq[which.min(risk_path_trw)],alpha_start,
-#                    sub,cores=cores)
-#                    
-# den1=rwrapper2(admm[[which.min(risk_path_quasr)]]$ze, admm[[which.min(risk_path_quasr)]]$zn,
-# 		edge_mean_test,node_mean_test,edgelist,
-#     	wt, legen.Vec, legen.array, lam, alpha_start, alg = 0L)
-# 
+
 pdf("riskpath.pdf")
 plot(nlist,apply(rpt,2,mean,na.rm=T),col="red",type="l",
-	ylim=range(apply(rpt,2,mean,na.rm=T),apply(rpq,2,mean,na.rm=T)[-3]),log="xy",
+	ylim=range(apply(rpt,2,mean,na.rm=T),apply(rpq,2,mean,na.rm=T)[-3]),log="x",
 	xlab="Number of samples",
 	ylab="Held-out neg log lik",lty=1)
-points(nlist[-3],apply(rpq,2,mean,na.rm=T)[-3],type="l",col="blue",lty=6)
+points(nlist,apply(rpq,2,mean,na.rm=T),type="l",col="blue",lty=6)
 dev.off()
-# pdf("bivden.pdf")
-# for(i in 1:dim(edgelist)[1]){
-# 	par(mfcol=c(1,2))
-# 	contour(den1$edge_den[,,i],nlevels=15);
-# 	points(dat,cex=.01)
-# 	contour(ptf$edge_den[,,i],nlevels=15);
-# 	points(dat,cex=.01)
+
+
+#pdf("bivdenrisk.pdf",width=10,height=7)
+# for(i in 1:dim(out[[1]]$trw$trw$edge_den)[3]){
+# par(mfcol=c(1,2))
+# 
+# contour(out[[1]]$trw$trw$edge_den[,,i])
+# den1=rwrapper2(out[[1]]$quasr$ze, out[[1]]$quasr$zn,
+#  		edge_mean,node_mean,edgelist,
+#      	wt, legen.Vec, legen.array, lam, alpha_start, alg = 0L)
+# contour(den1$edge_den[,,i])
 # }
 # dev.off()
-pdf("bivdenrisk.pdf",width=10,height=7)
-par(mfcol=c(1,2))
-contour(out[[1]]$trw$trw$edge_den[,,10])
-den1=rwrapper2(out[[1]]$quasr$ze, out[[1]]$quasr$zn,
- 		edge_mean,node_mean,edgelist,
-     	wt, legen.Vec, legen.array, lam, alpha_start, alg = 0L)
-contour(den1$edge_den[,,10])
 
-contour(out[[10]]$trw$trw$edge_den[,,10])
-den1=rwrapper2(out[[10]]$quasr$ze, out[[10]]$quasr$zn,
- 		edge_mean,node_mean,edgelist,
-     	wt, legen.Vec, legen.array, lam, alpha_start, alg = 0L)
-contour(den1$edge_den[,,10])
-
-
-con
+# 
+# contour(out[[10]]$trw$trw$edge_den[,,10])
+# den1=rwrapper2(out[[10]]$quasr$ze, out[[10]]$quasr$zn,
+#  		edge_mean,node_mean,edgelist,
+#      	wt, legen.Vec, legen.array, lam, alpha_start, alg = 0L)
+# contour(den1$edge_den[,,10])
+# dev.off()
